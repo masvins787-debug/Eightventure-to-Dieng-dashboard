@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Simulasi Anggaran Liburan ke Dieng</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+tailwind.config = { theme: { extend: {
+  fontFamily: { sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+  colors: { forest: '#1B4332', sage: '#52B788', sun: '#F59E0B', mist: '#F4F7F5' }
+}}};
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  :root { box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px); }
+  body { background:#F4F7F5; color:#1B4332; font-family:'Plus Jakarta Sans',sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .card { position:relative; background:#fff; border:1px solid #E3EAE5; border-radius:1rem; box-shadow:0 1px 2px rgba(27,67,50,.05); transition:box-shadow .25s, transform .25s; }
+  .card:hover { box-shadow:0 10px 28px -12px rgba(27,67,50,.22); transform:translateY(-2px); }
+  .glass { background:rgba(255,255,255,.16); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border:1px solid rgba(255,255,255,.3); }
+  .num { font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+  .inp { width:100%; border:1px solid #D5DFD8; border-radius:.75rem; padding:.6rem .8rem; font-size:.875rem; background:#fff; outline:none; }
+  .inp:focus { border-color:#52B788; box-shadow:0 0 0 3px rgba(82,183,136,.25); }
+  .ib { padding:.4rem; border-radius:.5rem; color:#64748b; transition:background .2s,color .2s; }
+  .ib:hover { background:#EAF4EE; color:#1B4332; }
+  .ib.del:hover { background:#FEE2E2; color:#B91C1C; }
+  button:focus-visible { outline:2px solid #F59E0B; outline-offset:2px; }
+  [x-cloak] { display:none !important; }
+  input[type=color] { -webkit-appearance:none; appearance:none; border:0; padding:0; background:none; }
+  input[type=color]::-webkit-color-swatch-wrapper { padding:0; }
+  input[type=color]::-webkit-color-swatch { border:0; border-radius:9999px; }
+  input[type=color]::-moz-color-swatch { border:0; border-radius:9999px; }
+  @media print {
+    body { background:#fff; }
+    .card { box-shadow:none; break-inside:avoid; transform:none !important; }
+    .hero { min-height:0 !important; }
+  }
+  @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
+</style>
+</head>
+<body x-data="app()" x-init="init()" x-cloak class="min-h-screen">
+
+<!-- HERO -->
+<header class="hero relative min-h-[500px] overflow-hidden flex items-end" style="background:linear-gradient(135deg,#1B4332,#2D6A4F 60%,#52B788)">
+  <img :src="trip.bg" x-show="trip.bg && !bgErr" @error="bgErr=true" @load="bgErr=false" alt="Foto latar trip" class="absolute inset-0 w-full h-full object-cover">
+  <div class="absolute inset-0 bg-gradient-to-t from-[#0d2318] via-[#1B4332]/55 to-[#1B4332]/20"></div>
+  <div class="relative max-w-6xl w-full mx-auto px-5 pt-28 flex flex-col justify-end pb-10">
+    <div class="flex flex-wrap gap-2 mb-5">
+      <span class="glass text-white text-sm font-medium px-3.5 py-1.5 rounded-full inline-flex items-center gap-2"><i data-lucide="calendar-days" class="w-4 h-4"></i><span x-text="trip.dates"></span></span>
+      <span class="glass text-white text-sm font-medium px-3.5 py-1.5 rounded-full inline-flex items-center gap-2"><i data-lucide="moon" class="w-4 h-4"></i><span x-text="trip.duration"></span></span>
+      <span class="glass text-white text-sm font-medium px-3.5 py-1.5 rounded-full inline-flex items-center gap-2"><i data-lucide="car" class="w-4 h-4"></i><span x-text="trip.vehicle"></span></span>
+    </div>
+    <h1 class="text-white text-4xl md:text-6xl font-extrabold leading-[1.05] tracking-tight max-w-3xl" x-text="trip.title"></h1>
+    <textarea x-model="tagline" rows="2" maxlength="200" title="Klik untuk mengedit teks ini" aria-label="Deskripsi trip" placeholder="Tulis deskripsi singkat trip..." x-effect="tagline; $nextTick(() => fit($el))" @input="fit($el)" class="mt-3 w-full max-w-xl resize-none overflow-hidden bg-transparent text-white/80 placeholder-white/50 text-base md:text-lg rounded-lg px-2 -mx-2 py-1 outline-none border border-transparent hover:border-white/30 focus:border-white/60 focus:bg-white/10"></textarea>
+    <div class="glass rounded-2xl mt-6 px-4 py-3 self-start flex flex-wrap items-center gap-x-6 gap-y-2">
+      <div class="flex items-center gap-2 text-white text-sm font-semibold"><i data-lucide="timer" class="w-4 h-4"></i>Hitung mundur keberangkatan</div>
+      <div class="flex gap-4 text-white" x-show="cdUnits.length">
+        <template x-for="u in cdUnits" :key="u[0]"><div class="text-center"><div class="num text-2xl font-extrabold leading-none" x-text="u[1]"></div><div class="text-[11px] text-white/70 mt-1" x-text="u[0]"></div></div></template>
+      </div>
+      <div x-show="cd && cd.done" class="text-white font-bold text-sm">Hari keberangkatan sudah tiba!</div>
+      <div x-show="!cd" class="text-white/80 text-sm">Isi tanggal berangkat di samping</div>
+      <label class="print:hidden text-xs text-white/80 flex items-center gap-2">Tanggal &amp; jam berangkat<input type="datetime-local" x-model="depart" class="rounded-lg px-2 py-1 text-xs text-forest bg-white/90 outline-none" aria-label="Tanggal dan jam berangkat"></label>
+    </div>
+    <div class="absolute top-5 right-5 left-5 md:left-auto flex flex-wrap justify-end gap-2 print:hidden">
+      <button @click="openModal('trip', trip)" class="glass text-white text-sm font-semibold px-4 py-2 rounded-full inline-flex items-center gap-2 hover:bg-white/25"><i data-lucide="pencil" class="w-4 h-4"></i>Ubah info trip</button>
+      <button @click="openModal('trip', trip)" class="glass text-white text-sm font-semibold px-4 py-2 rounded-full inline-flex items-center gap-2 hover:bg-white/25"><i data-lucide="image" class="w-4 h-4"></i>Ganti foto latar</button>
+      <button @click="window.print()" class="bg-sun text-forest text-sm font-bold px-4 py-2 rounded-full inline-flex items-center gap-2 hover:brightness-105"><i data-lucide="printer" class="w-4 h-4"></i>Cetak PDF</button>
+      <button @click="share()" class="glass text-white text-sm font-semibold px-4 py-2 rounded-full inline-flex items-center gap-2 hover:bg-white/25"><i data-lucide="share-2" class="w-4 h-4"></i>Bagikan ke WhatsApp</button>
+      <button @click="resetAll()" class="glass text-white text-sm font-semibold px-3 py-2 rounded-full inline-flex items-center hover:bg-white/25" aria-label="Reset data" title="Reset ke data awal"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-5 -mt-8 relative pb-16">
+
+  <!-- BENTO STATS -->
+  <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="card col-span-2 p-6 !bg-forest !border-forest text-white">
+      <div class="flex items-center gap-2 text-white/70 text-sm font-medium"><i data-lucide="wallet" class="w-4 h-4"></i>Total anggaran</div><button class="absolute top-3 right-11 ib print:hidden text-white/60 hover:!bg-white/10 hover:!text-white" title="Ubah manual" aria-label="Ubah manual" @click="editNum('total')"><i data-lucide="pencil" class="w-4 h-4"></i></button><button class="absolute top-3 right-3 ib print:hidden text-white/60 hover:!bg-white/10 hover:!text-white" title="Reset total anggaran ke data awal" aria-label="Reset total anggaran ke data awal" @click="resetBudget()"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></button>
+      <div class="num text-4xl md:text-5xl font-extrabold mt-3" x-text="rp(disp.total)"></div><button x-show="manual.total!==null" @click="manual.total=null" class="print:hidden mt-2 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-sun text-forest">Diatur manual · klik untuk otomatis</button>
+      <div class="text-sm text-white/65 mt-2" x-text="cats_list.length + ' kategori pengeluaran, ' + people + ' orang'"></div>
+    </div>
+    <div class="card p-6">
+      <div class="flex items-center gap-2 text-slate-500 text-sm font-medium"><i data-lucide="user" class="w-4 h-4"></i>Biaya per orang</div><button class="absolute top-3 right-11 ib print:hidden " title="Ubah manual" aria-label="Ubah manual" @click="editNum('pp')"><i data-lucide="pencil" class="w-4 h-4"></i></button><button class="absolute top-3 right-3 ib print:hidden " title="Reset pembulatan biaya per orang" aria-label="Reset pembulatan biaya per orang" @click="resetPart(['step'],'pembulatan biaya per orang')"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></button>
+      <div class="num text-3xl font-extrabold mt-3" x-text="rp(disp.rounded)"></div><button x-show="manual.pp!==null" @click="manual.pp=null" class="print:hidden mt-2 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-sun text-forest">Diatur manual · klik untuk otomatis</button>
+
+    </div>
+    <div class="card p-6">
+      <div class="flex items-center gap-2 text-slate-500 text-sm font-medium"><i data-lucide="users" class="w-4 h-4"></i>Jumlah peserta</div><button class="absolute top-3 right-3 ib print:hidden " title="Reset jumlah peserta ke 8" aria-label="Reset jumlah peserta ke 8" @click="resetPeople()"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></button>
+      <div class="flex items-center gap-3 mt-3 print:hidden">
+        <button class="ib border border-slate-200" @click="setPeople(people-1)" aria-label="Kurangi peserta"><i data-lucide="minus" class="w-4 h-4"></i></button>
+        <input type="number" min="1" max="30" :value="people" @change="setPeople(+$event.target.value || 1); $event.target.value = people" class="num text-3xl font-extrabold w-16 text-center bg-transparent outline-none focus:underline" aria-label="Jumlah peserta">
+        <button class="ib border border-slate-200" @click="setPeople(people+1)" aria-label="Tambah peserta"><i data-lucide="plus" class="w-4 h-4"></i></button>
+      </div>
+      <div class="hidden print:block num text-3xl font-extrabold mt-3" x-text="people"></div>
+      <div class="text-xs text-slate-500 mt-2">Biaya tiket dan darurat ikut menyesuaikan</div>
+    </div>
+    <div class="card col-span-2 lg:col-span-4 p-6">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div class="flex items-center gap-2 text-slate-500 text-sm font-medium"><i data-lucide="piggy-bank" class="w-4 h-4"></i>Dana terkumpul</div><button class="absolute top-3 right-11 ib print:hidden " title="Ubah manual" aria-label="Ubah manual" @click="editNum('collected')"><i data-lucide="pencil" class="w-4 h-4"></i></button><button class="absolute top-3 right-3 ib print:hidden " title="Hapus semua pembayaran" aria-label="Hapus semua pembayaran" @click="clearPayments()"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></button>
+          <div class="num text-3xl font-extrabold mt-2"><span x-text="rp(disp.collected)"></span> <span class="text-base font-semibold text-slate-400">dari <span x-text="rp(total)"></span></span></div>
+        </div>
+        <div class="text-sm font-semibold px-3 py-1.5 rounded-full" :class="collected>=total ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'" x-text="collected>=total ? 'Dana cukup' : 'Kurang ' + rp(total-collected)"></div>
+      </div>
+      <button x-show="manual.collected!==null" @click="manual.collected=null" class="print:hidden mt-2 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-sun text-forest">Diatur manual · klik untuk otomatis</button>
+      <div class="h-3 rounded-full bg-mist mt-4 overflow-hidden"><div class="h-full rounded-full bg-gradient-to-r from-sage to-sun transition-all duration-700" :style="'width:'+Math.min(100,collected/total*100)+'%'"></div></div>
+      <div class="text-xs text-slate-500 mt-2"><span x-text="paidCount"></span> dari <span x-text="people"></span> peserta sudah lunas (<span x-text="rp(rounded)"></span> per orang)</div>
+    </div>
+  </section>
+
+  <div class="grid lg:grid-cols-5 gap-6 mt-6">
+    <!-- LEFT -->
+    <div class="lg:col-span-3 space-y-6">
+      <section class="card p-6">
+        <div class="flex items-center justify-between mb-5">
+          <div><h2 class="text-xl font-bold">Rincian pengeluaran</h2><p class="text-xs text-slate-500">Klik nama kategori untuk menggantinya. <button class="underline font-semibold print:hidden" @click="resetPart(['items','cats'],'rincian pengeluaran')">Reset rincian</button></p></div>
+          <button @click="openModal('item')" class="print:hidden bg-forest text-white text-sm font-semibold px-4 py-2 rounded-full inline-flex items-center gap-2 hover:bg-[#2D6A4F]"><i data-lucide="plus" class="w-4 h-4"></i>Tambah biaya</button>
+        </div>
+        <template x-for="k in Object.keys(cats)" :key="k">
+          <div class="mb-5 last:mb-0" x-show="k!=='tiket'">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div class="flex items-center gap-2 font-bold"><span class="w-8 h-8 rounded-lg grid place-items-center text-white" :style="'background:'+cats[k].color"><i :data-lucide="cats[k].icon" class="w-4 h-4"></i></span><input x-model="cats[k].label" class="bg-transparent font-bold outline-none focus:underline min-w-0 w-full" aria-label="Nama kategori"></div>
+              <span class="num font-bold" x-text="rp(catTotal(k))"></span>
+            </div>
+            <template x-for="i in items.filter(x=>x.cat===k)" :key="i.id">
+              <div class="flex items-center gap-3 py-2.5 group">
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-semibold truncate" x-text="i.name"></div>
+                  <div class="text-xs text-slate-500 num" x-text="lineText(i)"></div>
+                </div>
+                <div class="num text-sm font-bold" x-text="rp(lineTotal(i))"></div>
+                <div class="flex print:hidden">
+                  <button class="ib" @click="openModal('item', i)" aria-label="Edit"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                  <button class="ib del" @click="items=items.filter(x=>x.id!==i.id)" aria-label="Hapus"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </div>
+              </div>
+            </template>
+            <div x-show="!items.some(x=>x.cat===k)" class="text-sm text-slate-400 py-2">Belum ada item. Tambahkan lewat tombol “Tambah biaya”.</div>
+          </div>
+        </template>
+        <div class="flex items-center justify-between pt-4 border-t border-slate-100 text-sm">
+          <span class="font-semibold flex items-center gap-1 min-w-0"><input x-model="cats.tiket.label" class="bg-transparent font-semibold outline-none focus:underline w-28" aria-label="Nama kategori tiket"><span class="text-slate-500 font-medium">(<span x-text="rp(spotsPP)"></span> × <span x-text="people"></span> orang)</span></span>
+          <span class="num font-bold" x-text="rp(catTotal('tiket'))"></span>
+        </div>
+      </section>
+
+      <section>
+        <div class="flex items-center justify-between mb-4">
+          <div><h2 class="text-xl font-bold">Destinasi wisata</h2><button class="text-xs underline font-semibold text-slate-500 print:hidden" @click="resetPart(['spots'],'destinasi wisata')">Reset destinasi</button></div>
+          <button @click="openModal('spot')" class="print:hidden bg-sun text-forest text-sm font-bold px-4 py-2 rounded-full inline-flex items-center gap-2 hover:brightness-105"><i data-lucide="map-pin-plus" class="w-4 h-4"></i>Tambah tempat</button>
+        </div>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <template x-for="s in spots" :key="s.id">
+            <article class="card overflow-hidden">
+              <div class="relative h-40" style="background:linear-gradient(135deg,#2D6A4F,#95D5B2)">
+                <img :src="s.img" :alt="s.name" class="absolute inset-0 w-full h-full object-cover" loading="lazy" onerror="this.style.display='none'">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent"></div>
+                <span class="absolute top-3 left-3 bg-white/90 text-forest text-xs font-bold px-3 py-1 rounded-full num" x-text="rp(s.price)+' / orang'"></span>
+                <div class="absolute top-2 right-2 flex gap-1 print:hidden">
+                  <button class="glass text-white p-1.5 rounded-lg hover:bg-white/30" @click="openModal('spot', s)" aria-label="Edit"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                  <button class="glass text-white p-1.5 rounded-lg hover:bg-red-500/60" @click="spots=spots.filter(x=>x.id!==s.id)" aria-label="Hapus"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </div>
+                <h3 class="absolute bottom-3 left-4 right-4 text-white font-bold text-lg" x-text="s.name"></h3>
+              </div>
+              <div class="px-4 py-3 text-xs text-slate-500">Total rombongan <span class="num font-bold text-forest" x-text="rp(s.price*people)"></span></div>
+            </article>
+          </template>
+        </div>
+      </section>
+      <section class="card p-6">
+        <div class="flex items-center justify-between mb-4"><h2 class="text-xl font-bold">Rencana perjalanan</h2><button class="text-xs underline font-semibold text-slate-500 print:hidden" @click="resetPart(['itinerary'],'rencana perjalanan')">Reset rencana</button></div>
+        <template x-for="d in days" :key="d.n">
+          <div class="mb-4">
+            <div class="text-sm font-bold mb-2" x-text="'Hari '+d.n+', '+d.label"></div>
+            <ul class="border-l-2 border-sage/40 ml-1 space-y-1">
+              <template x-for="p in dayPlan(d.n)" :key="p.id">
+                <li class="flex items-center gap-3 pl-4 relative">
+                  <span class="absolute -left-[5px] w-2 h-2 rounded-full bg-sage"></span>
+                  <span class="num text-xs font-bold text-amber-700 w-11" x-text="p.time||'--:--'"></span>
+                  <span class="flex-1 text-sm" x-text="p.text"></span>
+                  <button class="ib del print:hidden" @click="itinerary=itinerary.filter(x=>x.id!==p.id)" aria-label="Hapus"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </li>
+              </template>
+            </ul>
+          </div>
+        </template>
+        <form class="print:hidden grid grid-cols-12 gap-2 pt-3 border-t border-slate-100" @submit.prevent="addPlan()">
+          <select class="inp col-span-4 sm:col-span-3" x-model.number="np.day"><template x-for="d in days"><option :value="d.n" x-text="'Hari '+d.n"></option></template></select>
+          <input type="time" class="inp col-span-8 sm:col-span-3" x-model="np.time" aria-label="Jam">
+          <input class="inp col-span-8 sm:col-span-4" x-model="np.text" placeholder="Kegiatan">
+          <button class="col-span-4 sm:col-span-2 bg-forest text-white rounded-xl text-sm font-bold hover:bg-[#2D6A4F]">Tambah</button>
+        </form>
+      </section>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="lg:col-span-2 space-y-6">
+      <section class="card p-6">
+        <h2 class="text-xl font-bold mb-4">Proporsi pengeluaran</h2>
+        <div class="relative w-56 h-56 mx-auto">
+          <canvas x-ref="chart"></canvas>
+          <div class="absolute inset-0 grid place-items-center text-center pointer-events-none"><div><div class="text-xs text-slate-500">Total</div><div class="num font-extrabold text-lg" x-text="rp(total)"></div></div></div>
+        </div>
+        <ul class="mt-5 space-y-2">
+          <template x-for="k in Object.keys(cats)" :key="k">
+            <li class="flex items-center gap-2 text-sm"><input type="color" x-model="cats[k].color" class="w-5 h-5 cursor-pointer" title="Ubah warna" aria-label="Warna kategori"><span class="flex-1" x-text="cats[k].label"></span><span class="num text-slate-500" x-text="catSum ? Math.round(catTotal(k)/catSum*100)+'%' : '0%'"></span></li>
+          </template>
+        </ul>
+      </section>
+
+      <section class="card p-6">
+        <div class="flex items-center justify-between mb-1 gap-2">
+          <h2 class="text-xl font-bold">Pembayaran peserta</h2>
+          <button @click="remindAll()" class="print:hidden text-xs font-bold px-3 py-1.5 rounded-full border border-slate-200 hover:bg-mist inline-flex items-center gap-1.5"><i data-lucide="bell-ring" class="w-3.5 h-3.5"></i>Ingatkan semua</button>
+        </div>
+        <p class="text-xs text-slate-500 mb-3">Tagihan per orang <b class="num text-forest" x-text="rp(rounded)"></b>. Catat DP atau cicilan; status berubah otomatis. <button class="underline font-semibold print:hidden" @click="clearPayments()">Reset pembayaran</button></p>
+        <div class="grid grid-cols-3 gap-2 mb-4 text-center">
+          <div class="rounded-xl bg-emerald-50 p-2"><div class="num text-lg font-extrabold" x-text="statusCount('lunas')"></div><div class="text-[11px] font-semibold text-emerald-800">Lunas</div></div>
+          <div class="rounded-xl bg-amber-50 p-2"><div class="num text-lg font-extrabold" x-text="statusCount('sebagian')"></div><div class="text-[11px] font-semibold text-amber-800">Sebagian</div></div>
+          <div class="rounded-xl bg-mist p-2"><div class="num text-lg font-extrabold" x-text="statusCount('belum')"></div><div class="text-[11px] font-semibold text-slate-600">Belum bayar</div></div>
+        </div>
+        <ul class="space-y-2">
+          <template x-for="p in participants" :key="p.id">
+            <li class="rounded-xl border border-slate-100 p-3">
+              <div class="flex items-center gap-2">
+                <span class="w-8 h-8 rounded-full grid place-items-center text-xs font-bold text-white shrink-0" :class="status(p)==='lunas' ? 'bg-sage' : status(p)==='sebagian' ? 'bg-sun' : 'bg-slate-400'" x-text="(p.name||'?').charAt(0).toUpperCase()"></span>
+                <input x-model="p.name" class="flex-1 bg-transparent text-sm font-semibold outline-none min-w-0 focus:underline" aria-label="Nama peserta">
+                <span class="text-[11px] font-bold px-2.5 py-1 rounded-full" :class="badgeCls(p)" x-text="badgeTxt(p)"></span>
+              </div>
+              <div class="h-1.5 rounded-full bg-slate-100 mt-2.5 overflow-hidden"><div class="h-full rounded-full transition-all duration-500" :class="status(p)==='lunas' ? 'bg-sage' : 'bg-sun'" :style="'width:'+Math.min(100, rounded ? paid(p)/rounded*100 : 0)+'%'"></div></div>
+              <div class="flex justify-between mt-1.5 text-xs text-slate-500 num">
+                <span>Dibayar <b class="text-forest" x-text="rp(paid(p))"></b></span>
+                <span x-text="remaining(p)>0 ? 'Sisa '+rp(remaining(p)) : remaining(p)<0 ? 'Lebih '+rp(-remaining(p)) : 'Tuntas'"></span>
+              </div>
+              <div class="flex flex-wrap gap-1.5 mt-2 print:hidden">
+                <button class="text-xs font-bold px-3 py-1.5 rounded-full bg-forest text-white hover:bg-[#2D6A4F]" @click="openModal('pay', {pid:p.id, amount:Math.max(0,remaining(p)), date:today(), method:'Transfer', note:''})">Catat bayar</button>
+                <button x-show="remaining(p)>0" class="text-xs font-bold px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-800 hover:bg-emerald-200" @click="quickPay(p)">Lunaskan</button>
+                <button x-show="remaining(p)>0" class="text-xs font-bold px-3 py-1.5 rounded-full border border-slate-200 hover:bg-mist" @click="remind(p)">Tagih</button>
+                <button class="text-xs font-semibold px-3 py-1.5 rounded-full text-slate-500 hover:bg-mist ml-auto" @click="p.open=!p.open" x-text="'Riwayat ('+p.payments.length+')'"></button>
+              </div>
+              <ul x-show="p.open" x-transition class="mt-2 pt-2 border-t border-slate-100 space-y-1">
+                <template x-for="y in p.payments" :key="y.id">
+                  <li class="flex items-center gap-2 text-xs">
+                    <span class="text-slate-500 w-14" x-text="fmtDate(y.date)"></span>
+                    <span class="flex-1 min-w-0 truncate"><b x-text="y.method"></b><span class="text-slate-500" x-text="y.note ? ' · '+y.note : ''"></span></span>
+                    <span class="num font-bold" x-text="rp(y.amount)"></span>
+                    <button class="ib del print:hidden" @click="p.payments=p.payments.filter(z=>z.id!==y.id)" aria-label="Hapus pembayaran"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                  </li>
+                </template>
+                <li x-show="!p.payments.length" class="text-xs text-slate-400">Belum ada pembayaran.</li>
+              </ul>
+            </li>
+          </template>
+        </ul>
+      </section>
+      
+    </div>
+  </div>
+</main>
+
+<div x-show="toast" x-transition class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] bg-forest text-white text-sm font-semibold px-5 py-2.5 rounded-full shadow-xl print:hidden" x-text="toast"></div>
+
+<!-- MODAL -->
+<div x-show="modal.open" x-transition.opacity class="fixed inset-0 z-50 grid place-items-center p-4 bg-forest/50 backdrop-blur-sm print:hidden" @keydown.escape.window="modal.open=false" @click.self="modal.open=false">
+  <form @submit.prevent="save()" class="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 shadow-2xl space-y-4" x-show="modal.open" x-transition>
+    <div class="flex items-center justify-between">
+      <h3 class="text-lg font-bold" x-text="modalTitle"></h3>
+      <button type="button" class="ib" @click="modal.open=false" aria-label="Tutup"><i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+
+    <template x-if="modal.type==='trip'">
+      <div class="space-y-3">
+        <label class="block text-sm font-semibold">Judul trip<input class="inp mt-1" x-model="form.title" required></label>
+        <label class="block text-sm font-semibold">Tanggal<input class="inp mt-1" x-model="form.dates" required></label>
+        <label class="block text-sm font-semibold">Durasi<input class="inp mt-1" x-model="form.duration" required></label>
+        <label class="block text-sm font-semibold">Kendaraan<input class="inp mt-1" x-model="form.vehicle" required></label>
+        <div class="space-y-2">
+          <div class="flex items-center justify-between"><div class="text-sm font-semibold">Foto latar hero</div><button type="button" class="text-xs underline font-semibold text-slate-500" @click="form = JSON.parse(defaults).trip">Reset info &amp; foto trip</button></div>
+          <div class="h-28 rounded-xl overflow-hidden bg-gradient-to-br from-forest to-sage"><img :src="form.bg" x-show="form.bg" class="w-full h-full object-cover" alt="Pratinjau foto latar"></div>
+          <input class="inp" x-model="form.bg" placeholder="Tempel URL gambar (https://...)">
+          <div class="flex gap-2">
+            <label class="flex-1 cursor-pointer text-center border border-dashed border-sage rounded-xl py-2 text-sm font-semibold hover:bg-mist">Unggah dari perangkat<input type="file" accept="image/*" class="hidden" @change="pickBg($event)"></label>
+            <button type="button" class="px-3 rounded-xl text-sm font-semibold text-red-700 hover:bg-red-50" @click="form.bg=''">Hapus</button>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <template x-if="modal.type==='item'">
+      <div class="space-y-3">
+        <label class="block text-sm font-semibold">Kategori
+          <select class="inp mt-1" x-model="form.cat"><template x-for="k in ['transport','villa','konsumsi','darurat']"><option :value="k" x-text="cats[k].label"></option></template></select></label>
+        <label class="block text-sm font-semibold">Nama item<input class="inp mt-1" x-model="form.name" required placeholder="mis. Tol Trans-Jawa"></label>
+        <div class="grid grid-cols-2 gap-3">
+          <label class="block text-sm font-semibold">Jumlah (hari/malam/unit)<input type="number" min="1" class="inp mt-1" x-model.number="form.qty" required></label>
+          <label class="block text-sm font-semibold">Harga satuan (Rp)<input inputmode="numeric" autocomplete="off" class="inp mt-1" :value="fmtNum(form.price)" @input="moneyIn($event,'price')" placeholder="0" required></label>
+        </div>
+        <label class="flex items-center gap-2 text-sm"><input type="checkbox" x-model="form.pp" class="accent-[#52B788] w-4 h-4"> Harga dihitung per orang (dikali jumlah peserta)</label>
+      </div>
+    </template>
+
+    <template x-if="modal.type==='num'">
+      <div class="space-y-3">
+        <p class="text-sm text-slate-500" x-text="form.hint"></p>
+        <label class="block text-sm font-semibold">Nominal (Rp)<input inputmode="numeric" autocomplete="off" class="inp mt-1" :value="fmtNum(form.value)" @input="moneyIn($event,'value')" required></label>
+        <div class="flex flex-wrap gap-4">
+          <button type="button" class="text-xs font-semibold underline" @click="form.value = autoVal(form.key)">Isi hitungan otomatis (<span x-text="rp(autoVal(form.key))"></span>)</button>
+          <button type="button" class="text-xs font-semibold underline text-slate-500" @click="manual[form.key] = null; modal.open = false">Kembali ke otomatis</button>
+        </div>
+      </div>
+    </template>
+
+    <template x-if="modal.type==='pay'">
+      <div class="space-y-3">
+        <div class="rounded-xl bg-mist p-3 text-sm flex justify-between"><span>Sisa tagihan</span><b class="num" x-text="rp(Math.max(0, remaining(partOf(form.pid))))"></b></div>
+        <label class="block text-sm font-semibold">Nominal (Rp)<input inputmode="numeric" autocomplete="off" class="inp mt-1" :value="fmtNum(form.amount)" @input="moneyIn($event,'amount')" placeholder="0" required></label>
+        <button type="button" class="text-xs font-semibold underline" @click="form.amount=Math.max(0, remaining(partOf(form.pid)))">Isi sesuai sisa tagihan</button>
+        <div class="grid grid-cols-2 gap-3">
+          <label class="block text-sm font-semibold">Tanggal<input type="date" class="inp mt-1" x-model="form.date" required></label>
+          <label class="block text-sm font-semibold">Metode<select class="inp mt-1" x-model="form.method"><option>Transfer</option><option>Tunai</option><option>E-wallet</option><option>QRIS</option></select></label>
+        </div>
+        <label class="block text-sm font-semibold">Catatan<input class="inp mt-1" x-model="form.note" placeholder="mis. DP, cicilan ke-2"></label>
+      </div>
+    </template>
+
+    <template x-if="modal.type==='spot'">
+      <div class="space-y-3">
+        <label class="block text-sm font-semibold">Nama tempat<input class="inp mt-1" x-model="form.name" required></label>
+        <label class="block text-sm font-semibold">Tiket per orang (Rp)<input inputmode="numeric" autocomplete="off" class="inp mt-1" :value="fmtNum(form.price)" @input="moneyIn($event,'price')" placeholder="0" required></label>
+        <label class="block text-sm font-semibold">URL gambar<input type="url" class="inp mt-1" x-model="form.img" placeholder="https://images.unsplash.com/..."></label>
+      </div>
+    </template>
+
+    <div class="flex gap-2 justify-end pt-2">
+      <button type="button" @click="modal.open=false" class="px-4 py-2 rounded-full text-sm font-semibold text-slate-600 hover:bg-mist">Batal</button>
+      <button class="px-5 py-2 rounded-full text-sm font-bold bg-forest text-white hover:bg-[#2D6A4F]">Simpan</button>
+    </div>
+  </form>
+</div>
+
+<script>
+const U = id => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=800&q=80`;
+let _chart = null;
+function app() {
+  return {
+    trip: { title: 'Liburan Dieng: Negeri di Atas Awan', dates: '12 – 14 Maret 2027', duration: '3 Hari 2 Malam', vehicle: '1 Unit Xpander/Avanza', bg: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1800&q=80' },
+    cats: {
+      transport: { label: 'Transportasi', color: '#1B4332', icon: 'car' },
+      villa: { label: 'Akomodasi villa', color: '#52B788', icon: 'house' },
+      tiket: { label: 'Tiket wisata', color: '#F59E0B', icon: 'ticket' },
+      konsumsi: { label: 'Konsumsi villa', color: '#95D5B2', icon: 'utensils' },
+      darurat: { label: 'Dana darurat', color: '#94A3B8', icon: 'shield-check' }
+    },
+    items: [
+      { id: 1, cat: 'transport', name: 'Sewa mobil (per hari)', qty: 3, price: 450000, pp: false },
+      { id: 2, cat: 'transport', name: 'Bensin pulang-pergi', qty: 1, price: 700000, pp: false },
+      { id: 3, cat: 'transport', name: 'Parkir mobil', qty: 1, price: 50000, pp: false },
+      { id: 4, cat: 'villa', name: 'Sewa villa (per malam, kapasitas 8–10 orang)', qty: 2, price: 800000, pp: false },
+      { id: 5, cat: 'konsumsi', name: 'Makan malam di villa (2 malam, perkiraan)', qty: 2, price: 100000, pp: false },
+      { id: 6, cat: 'darurat', name: 'Dana darurat / opsional', qty: 1, price: 12500, pp: true }
+    ],
+    spots: [
+      { id: 1, name: 'Kawah Sikidang', price: 35000, img: U('photo-1464822759023-fed622ff2c3b') },
+      { id: 2, name: 'Telaga Menjer', price: 5000, img: U('photo-1501785888041-af3ef285b470') },
+      { id: 3, name: 'Kebun Teh Tambi', price: 10000, img: U('photo-1472214103451-9374bd1c798e') },
+      { id: 4, name: 'Bukit Sikunir', price: 15000, img: U('photo-1506905925346-21bda4d32df4') }
+    ],
+    participants: ['Andi','Budi','Citra','Dewi','Eko','Fajar','Gita','Hana'].map((n, i) => ({ id: 'p' + i, name: n, open: false, payments: i < 3 ? [{ id: 'y' + i, amount: 600000, date: '2026-11-05', method: 'Transfer', note: 'Lunas' }] : i === 3 ? [{ id: 'y' + i, amount: 300000, date: '2026-11-12', method: 'Tunai', note: 'DP' }] : [] })),
+    disp: { total: 0, pp: 0, rounded: 0, collected: 0 },
+    tagline: 'Negeri di atas awan: kawah, telaga, kebun teh, dan matahari terbit. Semua biaya patungan dihitung di sini.', depart: '2027-03-12T06:00', now: Date.now(), bgErr: false, manual: { total: null, pp: null, collected: null }, step: 50000, toast: '', defaults: '', np: { day: 1, time: '', text: '' },
+    days: [{ n: 1, label: 'Jumat, 12 Maret' }, { n: 2, label: 'Sabtu, 13 Maret' }, { n: 3, label: 'Minggu, 14 Maret' }],
+    itinerary: [
+      { id: 11, day: 1, time: '06:00', text: 'Berangkat dari kota asal' },
+      { id: 12, day: 1, time: '15:00', text: 'Check-in villa dan istirahat' },
+      { id: 13, day: 1, time: '16:30', text: 'Kawah Sikidang dan Telaga Menjer' },
+      { id: 14, day: 2, time: '03:30', text: 'Berburu sunrise di Bukit Sikunir' },
+      { id: 15, day: 2, time: '09:00', text: 'Sarapan lalu ke Kebun Teh Tambi' },
+      { id: 16, day: 3, time: '10:00', text: 'Check-out villa dan beli oleh-oleh' },
+      { id: 17, day: 3, time: '12:00', text: 'Perjalanan pulang' }
+    ],
+    modal: { open: false, type: '' }, form: {}, nextId: 100, chart: null,
+
+    get people() { return this.participants.length; },
+    get cats_list() { return Object.keys(this.cats); },
+    get spotsPP() { return this.spots.reduce((a, s) => a + (+s.price || 0), 0); },
+    get cd() {
+      const t = new Date(this.depart).getTime(); if (!this.depart || isNaN(t)) return null;
+      const ms = t - this.now; if (ms <= 0) return { done: true };
+      const S = Math.floor(ms / 1000);
+      return { done: false, d: Math.floor(S / 86400), h: Math.floor(S % 86400 / 3600), m: Math.floor(S % 3600 / 60), s: S % 60 };
+    },
+    get cdUnits() { const c = this.cd; if (!c || c.done) return []; const p = n => String(n).padStart(2, '0'); return [['Hari', c.d], ['Jam', p(c.h)], ['Menit', p(c.m)], ['Detik', p(c.s)]]; },
+    get catSum() { return this.cats_list.reduce((a, k) => a + this.catTotal(k), 0); },
+    get total() { return this.manual.total ?? this.catSum; },
+    get pp() { return this.people ? this.total / this.people : 0; },
+    get rounded() { return this.manual.pp ?? Math.ceil(this.pp / this.step) * this.step; },
+    get paidCount() { return this.participants.filter(p => this.status(p) === 'lunas').length; },
+    get paidSum() { return this.participants.reduce((a, p) => a + this.paid(p), 0); },
+    get collected() { return this.manual.collected ?? this.paidSum; },
+    get snapshot() { return JSON.stringify({ cats: this.cats, manual: this.manual, depart: this.depart, tagline: this.tagline, trip: this.trip, items: this.items, spots: this.spots, participants: this.participants, itinerary: this.itinerary, step: this.step, nextId: this.nextId }); },
+    get sig() { return this.cats_list.map(k => this.catTotal(k)).join(',') + '|' + this.cats_list.map(k => this.cats[k].label + this.cats[k].color).join(','); },
+    get modalTitle() { return { trip: 'Ubah info trip', item: this.form.id ? 'Edit biaya' : 'Tambah biaya', spot: this.form.id ? 'Edit tempat wisata' : 'Tambah tempat wisata', num: 'Ubah ' + (this.form.label || ''), pay: 'Catat pembayaran: ' + this.partOf(this.form.pid).name }[this.modal.type]; },
+
+    rp(n) { return 'Rp' + Math.round(n || 0).toLocaleString('id-ID'); },
+    lineTotal(i) { return i.price * i.qty * (i.pp ? this.people : 1); },
+    lineText(i) { return `${i.qty} × ${this.rp(i.price)}` + (i.pp ? ` × ${this.people} orang` : ''); },
+    catTotal(k) { return k === 'tiket' ? this.spotsPP * this.people : this.items.filter(i => i.cat === k).reduce((a, i) => a + this.lineTotal(i), 0); },
+
+    tween(key, to) {
+      const from = this.disp[key], t0 = performance.now(), dur = 700;
+      const step = now => {
+        const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+        this.disp[key] = from + (to - from) * e;
+        if (p < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    },
+    setPeople(n) {
+      n = Math.max(1, Math.min(30, n));
+      while (this.participants.length < n) { const id = this.nextId++; this.participants.push({ id, name: 'Peserta ' + (this.participants.length + 1), open: false, payments: [] }); }
+      while (this.participants.length > n) this.participants.pop();
+    },
+    openModal(type, obj) {
+      this.modal = { open: true, type };
+      const defaults = { trip: {}, item: { cat: 'transport', name: '', qty: 1, price: 0, pp: false }, spot: { name: '', price: 0, img: '' } };
+      this.form = JSON.parse(JSON.stringify(obj || defaults[type]));
+    },
+    save() {
+      const f = this.form, t = this.modal.type;
+      if (t === 'trip') Object.assign(this.trip, f);
+      else if (t === 'num') { this.manual[f.key] = +f.value || 0; }
+      else if (t === 'pay') { const p = this.partOf(f.pid); if (!(f.amount > 0)) return this.say('Nominal harus lebih dari 0'); { p.payments.push({ id: 'y' + this.nextId++, amount: +f.amount, date: f.date, method: f.method, note: f.note }); p.open = true; this.say('Pembayaran dicatat'); } }
+      else {
+        const list = t === 'item' ? 'items' : 'spots';
+        if (f.id) this[list] = this[list].map(x => x.id === f.id ? { ...f } : x);
+        else this[list].push({ ...f, id: this.nextId++ });
+      }
+      this.modal.open = false;
+    },
+    autoVal(k) { return k === 'total' ? this.catSum : k === 'pp' ? Math.ceil(this.total / this.people / this.step) * this.step : this.paidSum; },
+    editNum(k) {
+      const L = { total: 'total anggaran', pp: 'biaya per orang', collected: 'dana terkumpul' }[k];
+      const H = { total: 'Isi manual jika total sebenarnya berbeda dari jumlah rincian biaya.', pp: 'Nominal tagihan yang dibebankan ke setiap peserta (tanpa pembulatan otomatis).', collected: 'Isi manual jika dana terkumpul berbeda dari jumlah catatan pembayaran.' }[k];
+      this.openModal('num', { key: k, label: L, hint: H, value: k === 'pp' ? this.rounded : this[k] });
+    },
+    fit(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; },
+    fmtNum(n) { return n === '' || n == null ? '' : Number(n).toLocaleString('id-ID'); },
+    moneyIn(e, key) { const d = e.target.value.replace(/\D/g, ''); this.form[key] = d ? +d : 0; e.target.value = d ? (+d).toLocaleString('id-ID') : ''; },
+    resetPart(keys, label) {
+      if (!confirm('Kembalikan ' + label + ' ke data awal?')) return;
+      const d = JSON.parse(this.defaults); keys.forEach(k => this[k] = d[k]); if (keys.includes('step')) this.manual.pp = null; this.say('Reset: ' + label);
+    },
+    resetBudget() {
+      if (!confirm('Kembalikan total anggaran (rincian biaya, destinasi, nama kategori, dan 8 peserta) ke data awal? Data pembayaran peserta tetap aman.')) return;
+      const d = JSON.parse(this.defaults); ['items', 'spots', 'cats'].forEach(k => this[k] = d[k]); this.manual.total = null; this.setPeople(8); this.say('Total anggaran direset');
+    },
+    resetPeople() { if (!confirm('Kembalikan jumlah peserta menjadi 8?')) return; this.setPeople(8); this.say('Jumlah peserta direset'); },
+    clearPayments() { if (!confirm('Hapus semua catatan pembayaran peserta?')) return; this.participants.forEach(p => { p.payments = []; }); this.manual.collected = null; this.say('Semua pembayaran dihapus'); },
+    partOf(id) { return this.participants.find(x => x.id === id) || { name: '', payments: [] }; },
+    paid(p) { return p.payments.reduce((a, y) => a + (+y.amount || 0), 0); },
+    remaining(p) { return this.rounded - this.paid(p); },
+    status(p) { const v = this.paid(p); return v > 0 && v >= this.rounded ? 'lunas' : v > 0 ? 'sebagian' : 'belum'; },
+    statusCount(k) { return this.participants.filter(p => this.status(p) === k).length; },
+    badgeCls(p) { return { lunas: 'bg-emerald-100 text-emerald-800', sebagian: 'bg-amber-100 text-amber-800', belum: 'bg-slate-100 text-slate-600' }[this.status(p)]; },
+    badgeTxt(p) { return { lunas: 'Lunas', sebagian: 'Sebagian', belum: 'Belum bayar' }[this.status(p)]; },
+    today() { return new Date().toISOString().slice(0, 10); },
+    fmtDate(d) { const x = new Date(d); return isNaN(x) ? '-' : x.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }); },
+    quickPay(p) { p.payments.push({ id: 'y' + this.nextId++, amount: this.remaining(p), date: this.today(), method: 'Transfer', note: 'Pelunasan' }); p.open = true; this.say(p.name + ' dilunasi'); },
+    copyWA(t) { try { navigator.clipboard.writeText(t); this.say('Pesan disalin'); } catch (e) {} window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank'); },
+    remind(p) { this.copyWA(`Halo ${p.name}, pengingat patungan ${this.trip.title}. Tagihan ${this.rp(this.rounded)}, sudah dibayar ${this.rp(this.paid(p))}, sisa ${this.rp(this.remaining(p))}. Terima kasih!`); },
+    remindAll() {
+      const NL = String.fromCharCode(10), due = this.participants.filter(p => this.remaining(p) > 0);
+      if (!due.length) return this.say('Semua peserta sudah lunas');
+      this.copyWA([`*Pengingat patungan ${this.trip.title}*`, `Tagihan per orang ${this.rp(this.rounded)}`, '', ...due.map(p => `- ${p.name}: sisa ${this.rp(this.remaining(p))}`), '', 'Mohon segera dilunasi, terima kasih!'].join(NL));
+    },
+    pickBg(e) {
+      const file = e.target.files[0]; if (!file) return;
+      const r = new FileReader();
+      r.onload = () => { const im = new Image(); im.onload = () => { const sc = Math.min(1, 1600 / im.width), c = document.createElement('canvas'); c.width = im.width * sc; c.height = im.height * sc; c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); this.form.bg = c.toDataURL('image/jpeg', 0.82); }; im.src = r.result; };
+      r.readAsDataURL(file);
+    },
+    dayPlan(d) { return this.itinerary.filter(p => p.day === d).sort((a, b) => (a.time || '99').localeCompare(b.time || '99')); },
+    addPlan() { if (!this.np.text.trim()) return; this.itinerary.push({ id: this.nextId++, day: this.np.day, time: this.np.time, text: this.np.text.trim() }); this.np.text = ''; },
+    say(m) { this.toast = m; clearTimeout(this._t); this._t = setTimeout(() => this.toast = '', 2200); },
+    apply(d) { Object.keys(d).forEach(k => { if (k in this) this[k] = d[k]; }); },
+    load() {
+      this.defaults = this.snapshot;
+      try { const raw = localStorage.getItem('dieng-budget-v3'); if (raw) this.apply(JSON.parse(raw)); } catch (e) {}
+      this.$watch('snapshot', v => { try { localStorage.setItem('dieng-budget-v3', v); } catch (e) {} });
+    },
+    resetAll() {
+      if (!confirm('Kembalikan semua data ke angka awal? Perubahan Anda akan hilang.')) return;
+      try { localStorage.removeItem('dieng-budget-v3'); } catch (e) {}
+      this.apply(JSON.parse(this.defaults)); this.say('Data dikembalikan ke awal');
+    },
+    share() {
+      const t = [`*${this.trip.title}*`, `${this.trip.dates} · ${this.trip.duration} · ${this.people} orang`, '',
+        ...this.cats_list.map(k => `• ${this.cats[k].label}: ${this.rp(this.catTotal(k))}`), '',
+        `Total: ${this.rp(this.total)}`, `Patungan per orang: ${this.rp(this.rounded)}`, '', 'Status patungan:',
+        ...this.participants.map(p => `${{ lunas: '✅', sebagian: '🟡', belum: '⬜' }[this.status(p)]} ${p.name}${this.remaining(p) > 0 ? ' (sisa ' + this.rp(this.remaining(p)) + ')' : ''}`)].join('\n');
+      try { navigator.clipboard.writeText(t); this.say('Ringkasan disalin'); } catch (e) {}
+      window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank');
+    },
+    init() {
+      this.load();
+      setInterval(() => { this.now = Date.now(); }, 1000);
+      const sync = () => { this.tween('total', this.total); this.tween('pp', this.pp); this.tween('rounded', this.rounded); this.tween('collected', this.collected); };
+      ['total', 'pp', 'rounded', 'collected'].forEach(k => this.$watch(k, () => sync()));
+      sync();
+      _chart = new Chart(this.$refs.chart, {
+        type: 'doughnut',
+        data: { labels: this.cats_list.map(k => this.cats[k].label), datasets: [{ data: this.cats_list.map(k => this.catTotal(k)), backgroundColor: this.cats_list.map(k => this.cats[k].color), borderWidth: 3, borderColor: '#fff', hoverOffset: 6 }] },
+        options: { cutout: '72%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + this.rp(c.parsed) } } }, animation: { duration: 700 } }
+      });
+      this.$watch('sig', () => { _chart.data.labels = this.cats_list.map(k => this.cats[k].label); _chart.data.datasets[0].data = this.cats_list.map(k => this.catTotal(k)); _chart.data.datasets[0].backgroundColor = this.cats_list.map(k => this.cats[k].color); _chart.update(); });
+      let tm; const draw = () => { clearTimeout(tm); tm = setTimeout(() => { if (document.querySelector('i[data-lucide]')) lucide.createIcons(); }, 30); };
+      new MutationObserver(draw).observe(document.body, { childList: true, subtree: true });
+      draw();
+    }
+  };
+}
+</script>
+</body>
+</html>
